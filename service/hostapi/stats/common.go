@@ -9,6 +9,8 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/rancher/log"
+	"github.com/rancher/websocket-proxy/common"
 	"github.com/shirou/gopsutil/mem"
 )
 
@@ -46,6 +48,27 @@ func getContainerStats(reader io.ReadCloser, id string, pid int) (containerInfo,
 	result = append(result, contStats)
 	contInfo.Stats = result
 	return contInfo, nil
+}
+
+func writeResponseFromPipe(r *io.PipeReader, key string, response chan<- common.Message) {
+	lineReader := bufio.NewReader(r)
+	for {
+		line, err := lineReader.ReadString('\n')
+		if err != nil && err != io.EOF {
+			log.Errorf("Error with the container stat reader. error=%v", err)
+			return
+		}
+		line = strings.TrimSuffix(line, "\n")
+		message := common.Message{
+			Key:  key,
+			Type: common.Body,
+			Body: line,
+		}
+		response <- message
+		if err == io.EOF {
+			return
+		}
+	}
 }
 
 type DockerStats struct {

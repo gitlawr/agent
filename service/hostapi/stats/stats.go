@@ -1,7 +1,6 @@
 package stats
 
 import (
-	"bufio"
 	"io"
 	"net/url"
 	"time"
@@ -49,21 +48,7 @@ func (s *Handler) Handle(key string, initialMessage string, incomingMessages <-c
 		}
 	}(writer)
 
-	go func(r *io.PipeReader) {
-		scanner := bufio.NewScanner(r)
-		for scanner.Scan() {
-			text := scanner.Text()
-			message := common.Message{
-				Key:  key,
-				Type: common.Body,
-				Body: text,
-			}
-			response <- message
-		}
-		if err := scanner.Err(); err != nil {
-			log.Errorf("Error with the container stat scanner. error=%v", err)
-		}
-	}(reader)
+	go writeResponseFromPipe(reader, key, response)
 
 	memLimit, err := getMemCapcity()
 	if err != nil {
